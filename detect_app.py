@@ -1,7 +1,6 @@
 import json
 import numpy as np
 import cv2
-from typing import Dict, Any
 from PIL import Image
 import tensorflow as tf
 import streamlit as st
@@ -22,12 +21,12 @@ def load_assets():
 
     tf_model = tf.lite.Interpreter(model_path="quantized_model.tflite")
     tf_model.allocate_tensors()
+    tf_full_model = tf.keras.models.load_model("parasite-detector.h5")
+
+    return class_mappings, tf_model, tf_full_model
 
 
-    return class_mappings, tf_model
-
-
-label_mappings, model = load_assets()
+label_mappings, model, full_model = load_assets()
 
 
 def preprocess_image(image) -> np.ndarray:
@@ -50,15 +49,15 @@ def predict(image: np.ndarray) -> str:
     return res
 
 
-def get_top_10_feature_maps(image: np.ndarray, layer_index: int):
+def get_top_10_feature_maps(image: np.ndarray, layer_index: int, full_model):
     # Preprocess the image
     processed_image = preprocess_image(image)
-
     # Create a model to extract the feature maps from the desired layer
-    layer_model = tf.keras.Model(inputs=model.input, outputs=model.layers[layer_index].output)
+    # layer_model = tf.keras.Model(inputs=full_model.layers[0].input, outputs=full_model.layers[layer_index].output)
+    layer_model = tf.keras.models.Sequential([layer for layer in full_model.layers[:layer_index + 1]])
 
     # Predict to get the feature maps
-    feature_maps = layer_model.predict(processed_image)[0]
+    feature_maps = layer_model.predict(processed_image, verbose=0)[0]
 
     # Calculate the mean activation for each feature map
     mean_activations = np.mean(feature_maps, axis=(0, 1))
@@ -70,6 +69,8 @@ def get_top_10_feature_maps(image: np.ndarray, layer_index: int):
     top_feature_maps = feature_maps[:, :, top_indices]
 
     return top_feature_maps
+
+
 
 
 st.sidebar.title("Navigation")
@@ -88,7 +89,7 @@ if uploaded_file is not None:
     if page == "Prediction":
         with col1:
             st.header("Uploaded Image")
-            st.image(image, channels="RGB", caption='Uploaded Image.', use_column_width=True)
+            st.image(image, channels="RGB", caption='Uploaded Image.', use_container_width=True)
 
         with col2:
             st.header("Prediction")
@@ -100,19 +101,19 @@ if uploaded_file is not None:
     elif page == "Feature Map Visualization":
         with col1:
             st.header("Uploaded Image")
-            st.image(image, channels="RGB", caption='Uploaded Image.', use_column_width=True)
+            st.image(image, channels="RGB", caption='Uploaded Image.', use_container_width=True)
 
         with col2:
             st.header("Feature Map Visualization")
 
             # Get a list of convolutional layers
-            conv_layers = [layer.name for layer in model.layers if 'conv' in layer.name]
+            conv_layers = [layer.name for layer in full_model.layers if 'conv' in layer.name]
             layer_index = st.selectbox("Select convolutional layer", range(len(conv_layers)),
                                        format_func=lambda x: conv_layers[x])
 
             if st.button("Show Feature Maps"):
                 with st.spinner("Extracting feature maps..."):
-                    top_feature_maps = get_top_10_feature_maps(image, layer_index)
+                    top_feature_maps = get_top_10_feature_maps(image, layer_index, full_model)
 
                     num_feature_maps = top_feature_maps.shape[-1]
                     num_cols = 5  # Number of columns for the feature maps
@@ -123,7 +124,7 @@ if uploaded_file is not None:
 
                     for i in range(num_feature_maps):
                         ax = axes[i]
-                        ax.imshow(top_feature_maps[:, :, i], cmap='gray')
+                        ax.imshow(top_feature_maps[:, :, i], cmap='viridis')
                         ax.axis('off')
 
                     for i in range(num_feature_maps, len(axes)):

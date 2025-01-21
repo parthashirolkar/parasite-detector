@@ -1,3 +1,4 @@
 .ipynb_checkpoints/
 parasite-dataset/
 parasite-detector-model/
+*.h5
