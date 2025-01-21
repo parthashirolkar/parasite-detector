@@ -83,7 +83,7 @@ uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png
 if uploaded_file is not None:
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
     image = cv2.imdecode(file_bytes, 1)
-
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     col1, col2 = st.columns(2)
 
     if page == "Prediction":
@@ -124,7 +124,7 @@ if uploaded_file is not None:
 
                     for i in range(num_feature_maps):
                         ax = axes[i]
-                        ax.imshow(top_feature_maps[:, :, i], cmap='viridis')
+                        ax.imshow(top_feature_maps[:, :, i], cmap='inferno')
                         ax.axis('off')
 
                     for i in range(num_feature_maps, len(axes)):

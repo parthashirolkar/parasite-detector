@@ -8,7 +8,7 @@ import tensorflow as tf
 
 def quantize_model():
     # Load the Keras model from the HDF5 file
-    model = tf.keras.models.load_model("parasite-detector.h5")
+    model = tf.keras.models.load_model("parasite-detector.keras")
 
     # Convert to TFLite model with quantization
     converter = tf.lite.TFLiteConverter.from_keras_model(model)

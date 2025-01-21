@@ -2,3 +2,4 @@
 parasite-dataset/
 parasite-detector-model/
 *.h5
+*.keras
